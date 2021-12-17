@@ -18,6 +18,9 @@ class GBOptimize(InteractionEnergy):
         self.delta = delta
         self.precision = precision
 
+    def add_new(self, atoms):
+        self.atoms = atoms
+
     def derivative(self, axis, atom_i):
         """
         atom_i - номер атома, который будем толкать
@@ -50,6 +53,7 @@ class GBOptimize(InteractionEnergy):
 
     def print_atoms(self, ):
         """
+        Метод для распечатки атомов
         """
         for i in range(len(self.atoms)):
             self.atoms[i].print_point()
@@ -58,9 +62,9 @@ class GBOptimize(InteractionEnergy):
         """
         Возвращает градиент функции
         """
-        return {self.derivative('x', atom_i),
+        return (self.derivative('x', atom_i),
                 self.derivative('y', atom_i),
-                self.derivative('z', atom_i)}
+                self.derivative('z', atom_i))
 
 
 def main():
