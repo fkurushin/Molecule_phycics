@@ -80,15 +80,19 @@ class MoleculeVolume(object):
         z = random.uniform(dict['z'][0], dict['z'][1])
         return Point(x, y, z)
 
-    def calculate_volume(self, precision, n_experiments, alpha):
+    def calculate_volume(self, precision, n_experiments, alpha, verbose=0):
         '''
         Расчитывает объем молекулы методом Монте Карло при заданной точности, считает погрешность,
         Можно регулировать количество измеренией
         '''
         volumes = list()
         parall_cords = self.find_parallelepiped()
-        print("\nCalculating volume...")
-        for i in tqdm(range(n_experiments)):
+        if verbose == 1:
+            print("\nCalculating volume...")
+            f = tqdm
+        else:
+            f = 1
+        for i in f(range(n_experiments)):
 
             n_accuracy = 0
             ratio = 0.0

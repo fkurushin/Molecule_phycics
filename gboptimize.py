@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from tqdm import tqdm
+from point import Point
 from vector import Vector
 from filereader import FileReader
 from interactionenergy import InteractionEnergy
@@ -17,6 +18,7 @@ class GBOptimize(InteractionEnergy):
         InteractionEnergy.__init__(self, filepath, D0, r0, S, Betta, gamma, c, d, h, two_mu, R, D)
         self.delta = delta
         self.precision = precision
+        self.forces = list()
 
     def add_new(self, atoms):
         self.atoms = atoms
@@ -62,9 +64,18 @@ class GBOptimize(InteractionEnergy):
         """
         Возвращает градиент функции
         """
-        return (self.derivative('x', atom_i),
-                self.derivative('y', atom_i),
-                self.derivative('z', atom_i))
+        return self.derivative('x', atom_i), self.derivative('y', atom_i), self.derivative('z', atom_i)
+
+    def find_forces(self, ):
+        """
+        """
+        forces = list()
+        for i in range(len(self.atoms)):
+            fx, fy, fz = self.grad(i)
+            force = Point(fx, fy, fz)
+            forces.append(force)
+
+        self.forces = forces
 
 
 def main():

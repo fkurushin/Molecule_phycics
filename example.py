@@ -1,6 +1,8 @@
 from gboptimize import GBOptimize
 from moleculevolume import MoleculeVolume
-
+"""
+Удалить файл atomicenergy
+"""
 PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/check.xyz"
 
 GBO = GBOptimize(filepath=PATH,
