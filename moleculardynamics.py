@@ -109,7 +109,7 @@ class MolecularDynamics(object):
         """
         return 1 / math.sqrt(1 + self.X(i, j))
 
-    def calculate_energy(self):
+    def calculate_energy(self, ):
         E = 0
         for i in range(0, len(self.atoms)):
             for j in range(0, len(self.atoms)):
@@ -302,6 +302,7 @@ class MolecularDynamics(object):
         """
         Метод для распечатки атомов
         """
+        print("Atoms:")
         for i in range(len(self.atoms)):
             self.atoms[i].print_point()
 
@@ -328,14 +329,6 @@ class MolecularDynamics(object):
 
         self.velocities = tmp
 
-    def print_atoms(self, ):
-        """
-        Метод для распечатки атомов
-        """
-        print("Atoms:")
-        for atom in range(len(self.atoms)):
-            self.atoms[i].print_point()
-
     def print_velocities(self, ):
         """
         Метод для распечатки атомов
@@ -360,13 +353,14 @@ class MolecularDynamics(object):
             force = Point(fx, fy, fz)
             self.forces.append(force)
 
-    def find_volume(self, T, dtime=1, num_iters=1000):
+    def find_volume(self, T, dtime=1, num_iters=1000, error=True):
         """
         Метод для придачи движения атомам
         """
         print(f"Calculating volume(T={T})")
         self.find_velocities(T)
-        volumes = np.zeros(int(num_iters / 200))
+        frequency = num_iters / 5
+        volumes = np.zeros(int(num_iters / frequency))
         self.find_forces()
         vforces = self.forces
         for i in tqdm(range(num_iters)):
@@ -381,19 +375,122 @@ class MolecularDynamics(object):
                 velocity.y += 0.5 * dtime * (vf.y + force.y) / self.mass
                 velocity.z += 0.5 * dtime * (vf.z + force.z) / self.mass
 
-            if i % 200 == 0:
-                volumes[int(i / 200)], _ = self.calculate_volume(precision=1000,
-                                                                 n_experiments=1000,
-                                                                 alpha=0.95,
-                                                                 verbose=0)
-        return volumes.mean()
+            if i % frequency == 0:
+                volumes[int(i / frequency)], _ = self.calculate_volume(precision=1000,
+                                                                       n_experiments=1000,
+                                                                       alpha=0.95,
+                                                                       verbose=0)
+        if error is True:
+            return volumes.mean(), (volumes.max() - volumes.min()) / 2
+        else:
+            return volumes.mean()
+
+    def findlx(self, ):
+        lst = list()
+        for atom in self.atoms:
+            lst.append(atom.x)
+        return max(lst) - min(lst)
+
+    def findly(self, ):
+        lst = list()
+        for atom in self.atoms:
+            lst.append(atom.y)
+        return max(lst) - min(lst)
+
+    def findlz(self, ):
+        lst = list()
+        for atom in self.atoms:
+            lst.append(atom.z)
+        return max(lst) - min(lst)
+
+    def move(self, ):
+        # Быть может это условие неправильное
+        for atom, idx in enumerate(self.atoms):
+            if idx != 9 and idx != 10:
+                atom.y = atom.y * 1.1
+                # atom.z = atom.z * 1.1
     """
     END
     """
+    def thermal_test(self, T):
+        """
+        Определить термическую устойчивость своей структуры, то есть Тмакс при которой, она может прожить 10пикосекунд, с точностью то 100 градусов К
+        1) Отрелаксировать
+        2) Нагреть до T хз и подождать 10 пикосекунд
+        3) Отрелаксировать
+        4) Оптимальная энергия
+        5) Если Е0=Е1
+        5) Значит не распалась
+        6) Значит Т выше! (0 оценка - Тплав кремния, при которой точно распадется и понижать Т, делением поплоам например при 300К не распадется)
+        7) Ищем Т макс
+        """
+        self.find_velocities(T)
+        self.find_forces()
+        dtime = 1
+        f = np.zeros([10, 3])
+        volumes = np.zeros(50)
+        for i in tqdm(range(1000)):
+            for atom, force, velocity in zip(self.atoms, self.forces, self.velocities):
+                atom.x += velocity.x * dtime + 0.5 * force.x * dtime**2 / self.mass
+                atom.y += velocity.y * dtime + 0.5 * force.y * dtime**2 / self.mass
+                atom.z += velocity.z * dtime + 0.5 * force.z * dtime**2 / self.mass
+
+            vforces = self.forces
+            self.find_forces()
+
+            for vf, force, velocity in zip(vforces, self.forces, self.velocities):
+                velocity.x += 0.5 * dtime * (vf.x + force.x) / self.mass
+                velocity.y += 0.5 * dtime * (vf.y + force.y) / self.mass
+                velocity.z += 0.5 * dtime * (vf.z + force.z) / self.mass
+
+
+def checkEquality(mol_base, mol):
+    mol.find_min()
+    if np.abs(mol_base.calculate_energy() - mol.calculate_energy()) < 0.001:
+        return "Molecule is ok"
+    return "Molecule has been desintegrated"
+
+
+def thermalResistance(mol, T):
+    mol_base = mol
+    mol.thermal_test(T)
+    print(checkEquality(mol_base, mol))
+    mol.print_atoms()
+
+
+def find_period(mol, dtime=1, num_iters=1000):
+    """
+    Метод для придачи движения атомам
+    """
+    print(f"Calculating period")
+    atoms0 = np.array([[0.2, 0.0, 0.0], [0.0, 0.0, 0.0]], np.float32)
+    t_prev = 0
+    mol.find_velocities(300)
+    mol.find_forces()
+    vforces = mol.forces
+    for t in tqdm(range(num_iters)):
+        for atom, force, velocity in zip(mol.atoms, mol.forces, mol.velocities):
+            atom.x += velocity.x * dtime + 0.5 * force.x * dtime**2 / 2912
+            atom.y += velocity.y * dtime + 0.5 * force.y * dtime**2 / 2912
+            atom.z += velocity.z * dtime + 0.5 * force.z * dtime**2 / 2912
+
+        vforces = mol.forces
+        mol.find_forces()
+        for vf, force, velocity in zip(vforces, mol.forces, mol.velocities):
+            velocity.x += 0.5 * dtime * (vf.x + force.x) / 2912
+            velocity.y += 0.5 * dtime * (vf.y + force.y) / 2912
+            velocity.z += 0.5 * dtime * (vf.z + force.z) / 2912
+
+        if np.abs(0.2 - mol.atoms[0].x) < 0.1 and np.abs(0.0 - mol.atoms[1].x) < 0.1:
+            print(t, t - t_prev)
+            t_prev = t
+        # if t < 2:
+        #     print("0")
+        #     mol.print_atoms()
 
 
 def main():
-    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/check.xyz"
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/sinew10.xyz"
     MD = MolecularDynamics(filepath=PATH,
                            D0=3.24,
                            r0=2.222,
@@ -408,16 +505,9 @@ def main():
                            D=0.15,
                            delta=0.01,
                            precision=0.1)
+
     MD.find_min()
-    V0_prec, _ = MD.calculate_volume(precision=1000,
-                                     n_experiments=1000,
-                                     alpha=0.95,
-                                     verbose=0)
-    V0 = MD.find_volume(0)
-    # V1 = MD.find_volume(100)
-    # V2 = MD.find_volume(200)
-    # V3 = MD.find_volume(300)
-    print(V0_prec, V0)
+    MD.print_atoms()
 
 
 if __name__ == '__main__':
