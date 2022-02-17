@@ -5,6 +5,7 @@ from tqdm import tqdm
 from point import Point
 from vector import Vector
 from filereader import FileReader
+import matplotlib.pyplot as plt
 
 
 class MolecularDynamics(object):
@@ -265,9 +266,6 @@ class MolecularDynamics(object):
     """
     GBOPTIMIZE
     """
-    def add_new(self, atoms):
-        self.atoms = atoms
-
     def derivative(self, axis, atom_i):
         """
         atom_i - номер атома, который будем толкать
@@ -287,7 +285,7 @@ class MolecularDynamics(object):
         else:
             return 1
 
-    def find_min(self, ):
+    def relaxate(self, ):
         """
         """
         axises = ['x', 'y', 'z']
@@ -305,6 +303,14 @@ class MolecularDynamics(object):
         print("Atoms:")
         for i in range(len(self.atoms)):
             self.atoms[i].print_point()
+
+    def atoms_to_file(self, filename):
+        with open(filename, "w") as file:
+            file.write(str(len(self.atoms)) + '\n')
+            file.write('Si' + '\t' + str(self.atom_radiuses['Si']) + '\n')
+            for atom in self.atoms:
+                file.write('Si' + '\t' + str(atom.x) + '\t' + str(atom.y) + '\t' + str(atom.z) + '\n')
+        file.close()
 
     def grad(self, atom_i):
         """
@@ -339,7 +345,7 @@ class MolecularDynamics(object):
 
     def print_forces(self, ):
         """
-        Метод для распечатки атомов
+        Метод для распечатки сил
         """
         print("Forces:")
         for i in range(len(self.forces)):
@@ -384,7 +390,13 @@ class MolecularDynamics(object):
             return volumes.mean(), (volumes.max() - volumes.min()) / 2
         else:
             return volumes.mean()
+    """
+    END
+    """
 
+    """
+    8
+    """
     def findlx(self, ):
         lst = list()
         for atom in self.atoms:
@@ -403,12 +415,43 @@ class MolecularDynamics(object):
             lst.append(atom.z)
         return max(lst) - min(lst)
 
-    def move(self, ):
-        # Быть может это условие неправильное
-        for atom, idx in enumerate(self.atoms):
-            if idx != 9 and idx != 10:
-                atom.y = atom.y * 1.1
-                # atom.z = atom.z * 1.1
+    def relaxate_special(self, blacklist):
+        """
+        Почему-то двигаются ребята из блэклиста
+        """
+        axises = ['x', 'y', 'z']
+        for i in range(len(self.atoms)):
+            if i not in blacklist:
+                for axis in axises:
+                    sign = self.delta_sign(axis, i)
+                    while self.derivative(axis, i) > self.precision:
+                        self.atoms[i].move(axis, sign * self.delta)
+
+    def pull(self, delta):
+        for idx, atom in enumerate(self.atoms):
+            if idx != 3 and idx != 5:
+                atom.x = atom.x * (1 + delta)
+        self.relaxate_special([3, 5, 9, 10])
+
+    def experiments(self, ):
+        atoms0 = self.atoms
+        tensiles = list()
+        deformations = list()
+        for i in tqdm(range(100)):
+            self.pull(0.01 * i)
+
+            f1x, _, _, = self.grad(2)
+            f2x, _, _, = self.grad(4)
+            f3x, _, _, = self.grad(8)
+            f4x, _, _, = self.grad(9)
+
+            sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
+            tensiles.append(sigma)
+            deformations.append(0.1 * i / self.findlx())
+            self.atoms = atoms0
+
+        return tensiles, deformations
+
     """
     END
     """
@@ -445,7 +488,7 @@ class MolecularDynamics(object):
 
 
 def checkEquality(mol_base, mol):
-    mol.find_min()
+    mol.relaxate()
     if np.abs(mol_base.calculate_energy() - mol.calculate_energy()) < 0.001:
         return "Molecule is ok"
     return "Molecule has been desintegrated"
@@ -490,7 +533,7 @@ def find_period(mol, dtime=1, num_iters=1000):
 
 
 def main():
-    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/sinew10.xyz"
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/dataex8.xyz"
     MD = MolecularDynamics(filepath=PATH,
                            D0=3.24,
                            r0=2.222,
@@ -506,8 +549,9 @@ def main():
                            delta=0.01,
                            precision=0.1)
 
-    MD.find_min()
-    MD.print_atoms()
+    x, y = MD.experiments()
+    plt.plot(x, y)
+    plt.show()
 
 
 if __name__ == '__main__':
