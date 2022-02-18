@@ -427,33 +427,37 @@ class MolecularDynamics(object):
                     while self.derivative(axis, i) > self.precision:
                         self.atoms[i].move(axis, sign * self.delta)
 
-    def pull(self, delta):
+    def pull(self, dx):
+        # dx - и есть деформация
         for idx, atom in enumerate(self.atoms):
-            if idx != 3 and idx != 5:
-                atom.x = atom.x * (1 + delta)
-        self.relaxate_special([3, 5, 9, 10])
+            if idx != 2 and idx != 4:  # 3 5
+                atom.x = atom.x * (1 + dx)
 
     def experiments(self, ):
-        atoms0 = self.atoms
         tensiles = list()
         deformations = list()
-        for i in tqdm(range(100)):
-            self.pull(0.01 * i)
+        l0 = self.findlx()
+        print(l0)
+        for i in tqdm(range(15)):
+            dx = 0.01 * i
 
-            f1x, _, _, = self.grad(2)
-            f2x, _, _, = self.grad(4)
-            f3x, _, _, = self.grad(8)
-            f4x, _, _, = self.grad(9)
+            self.pull(dx)
+            self.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
+
+            f1x, _, _, = self.grad(2)  # 3
+            f2x, _, _, = self.grad(4)  # 5
+            f3x, _, _, = self.grad(8)  # 9
+            f4x, _, _, = self.grad(9)  # 10
 
             sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
-            tensiles.append(sigma)
-            deformations.append(0.1 * i / self.findlx())
-            self.atoms = atoms0
+            epsilon = dx / l0
 
-        return tensiles, deformations
+            tensiles.append(sigma)
+            deformations.append(epsilon)
+
+        return deformations, tensiles
 
     """
-    END
     """
     def thermal_test(self, T):
         """
