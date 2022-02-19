@@ -1,4 +1,5 @@
 import math
+import copy
 import random
 import numpy as np
 from tqdm import tqdm
@@ -427,35 +428,59 @@ class MolecularDynamics(object):
                     while self.derivative(axis, i) > self.precision:
                         self.atoms[i].move(axis, sign * self.delta)
 
-    def pull(self, dx):
+    def pull(self, epsilon):
         # dx - и есть деформация
         for idx, atom in enumerate(self.atoms):
             if idx != 2 and idx != 4:  # 3 5
-                atom.x = atom.x * (1 + dx)
+                atom.x = atom.x * (1 + epsilon)
 
-    def experiments(self, ):
-        tensiles = list()
-        deformations = list()
-        l0 = self.findlx()
-        print(l0)
-        for i in tqdm(range(15)):
-            dx = 0.01 * i
+    # def experiments(self, ):
+    #     atoms0 = self.atoms
+    #     tensiles = list()
+    #     deformations = list()
+    #     l0 = self.findlx()
+    #     # dx = 0.1
+    #     # 2.31
+    #     for epsilon in tqdm(range(30)):
+    #         self.pull(epsilon / 100 * l0)
+    #         self.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
+    #
+    #         f1x, _, _, = self.grad(2)  # 3
+    #         f2x, _, _, = self.grad(4)  # 5
+    #         f3x, _, _, = self.grad(8)  # 9
+    #         f4x, _, _, = self.grad(9)  # 10
+    #
+    #         sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
+    #         tensiles.append(sigma)
+    #         deformations.append(epsilon)
+    #         self.atoms = atoms0
+    #
+    #     return deformations, tensiles
+    #
 
-            self.pull(dx)
-            self.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
 
-            f1x, _, _, = self.grad(2)  # 3
-            f2x, _, _, = self.grad(4)  # 5
-            f3x, _, _, = self.grad(8)  # 9
-            f4x, _, _, = self.grad(9)  # 10
+def experiments(molecule):
+    molecule0 = copy.deepcopy(molecule)
+    tensiles = list()
+    deformations = list()
+    l0 = molecule.findlx()
+    # dx = 0.1
+    # 2.31
+    for epsilon in tqdm(range(300)):
+        molecule.pull(epsilon / 1000 * l0)
+        molecule.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
 
-            sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
-            epsilon = dx / l0
+        f1x, _, _, = molecule.grad(2)  # 3
+        f2x, _, _, = molecule.grad(4)  # 5
+        f3x, _, _, = molecule.grad(8)  # 9
+        f4x, _, _, = molecule.grad(9)  # 10
 
-            tensiles.append(sigma)
-            deformations.append(epsilon)
+        sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
+        tensiles.append(sigma)
+        deformations.append(epsilon)
+        molecule = copy.deepcopy(molecule0)
 
-        return deformations, tensiles
+    return deformations, tensiles
 
     """
     """
@@ -553,7 +578,7 @@ def main():
                            delta=0.01,
                            precision=0.1)
 
-    x, y = MD.experiments()
+    x, y = experiments(MD)
     plt.plot(x, y)
     plt.show()
 
