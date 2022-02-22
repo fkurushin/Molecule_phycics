@@ -396,7 +396,7 @@ class MolecularDynamics(object):
     """
 
     """
-    8
+    Изучение прочности
     """
     def findlx(self, ):
         lst = list()
@@ -418,7 +418,6 @@ class MolecularDynamics(object):
 
     def relaxate_special(self, blacklist):
         """
-        Почему-то двигаются ребята из блэклиста
         """
         axises = ['x', 'y', 'z']
         for i in range(len(self.atoms)):
@@ -434,40 +433,15 @@ class MolecularDynamics(object):
             if idx != 2 and idx != 4:  # 3 5
                 atom.x = atom.x * (1 + epsilon)
 
-    # def experiments(self, ):
-    #     atoms0 = self.atoms
-    #     tensiles = list()
-    #     deformations = list()
-    #     l0 = self.findlx()
-    #     # dx = 0.1
-    #     # 2.31
-    #     for epsilon in tqdm(range(30)):
-    #         self.pull(epsilon / 100 * l0)
-    #         self.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
-    #
-    #         f1x, _, _, = self.grad(2)  # 3
-    #         f2x, _, _, = self.grad(4)  # 5
-    #         f3x, _, _, = self.grad(8)  # 9
-    #         f4x, _, _, = self.grad(9)  # 10
-    #
-    #         sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
-    #         tensiles.append(sigma)
-    #         deformations.append(epsilon)
-    #         self.atoms = atoms0
-    #
-    #     return deformations, tensiles
-    #
 
-
-def experiments(molecule):
+def tensile(molecule):
     molecule0 = copy.deepcopy(molecule)
     tensiles = list()
     deformations = list()
     l0 = molecule.findlx()
-    # dx = 0.1
-    # 2.31
-    for epsilon in tqdm(range(300)):
-        molecule.pull(epsilon / 1000 * l0)
+    for epsilon in tqdm(range(30)):
+        epsilon = epsilon / 100
+        molecule.pull(epsilon * l0)
         molecule.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
 
         f1x, _, _, = molecule.grad(2)  # 3
@@ -483,6 +457,11 @@ def experiments(molecule):
     return deformations, tensiles
 
     """
+    Изучение прочности
+    """
+
+    """
+    Изучение термосопротивления
     """
     def thermal_test(self, T):
         """
@@ -560,9 +539,26 @@ def find_period(mol, dtime=1, num_iters=1000):
         #     print("0")
         #     mol.print_atoms()
 
+    """
+    Изучение термосопротивления
+    """
+
+    """
+    Изучение теплопроводности
+    """
+    # Вариант 4
+
+
+def thermal_conductivity(molecule):
+    molecule.relaxate()
+
+    """
+    Изучение теплопроводности
+    """
+
 
 def main():
-    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/dataex8.xyz"
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/si10_1d_chain.xyz"
     MD = MolecularDynamics(filepath=PATH,
                            D0=3.24,
                            r0=2.222,
@@ -575,12 +571,11 @@ def main():
                            two_mu=0.0,
                            R=2.90,
                            D=0.15,
-                           delta=0.01,
-                           precision=0.1)
+                           delta=0.001,
+                           precision=0.001)
 
-    x, y = experiments(MD)
-    plt.plot(x, y)
-    plt.show()
+    thermal_conductivity(MD)
+    MD.atoms_to_file('/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/si10_1d_chain_relaxed.xyz')
 
 
 if __name__ == '__main__':
