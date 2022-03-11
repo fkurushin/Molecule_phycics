@@ -28,7 +28,7 @@ print("V : ", MV.calculate_volume(precision=1000,
                                   alpha=0.95))
 print("E :", GBO.calculate_energy())
 
-GBO.find_min()  # Ищем оптимальную структуру
+GBO.relaxate()  # Ищем оптимальную структуру
 
 print("\nAfter:")
 
