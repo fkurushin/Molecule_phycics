@@ -33,7 +33,7 @@ class MolecularDynamics(object):
 
         self.delta = delta
         self.precision = precision
-        self.mass = 2912
+        self.mass = 2912 * len(self.atoms)
         self.forces = list()
         self.velocities = list()
 
@@ -286,16 +286,29 @@ class MolecularDynamics(object):
         else:
             return 1
 
-    def relaxate(self, ):
+    def relaxate(self, verbose=0):
         """
         """
         axises = ['x', 'y', 'z']
-        print("\nCalculating optimal displacment...")
-        for i in tqdm(range(len(self.atoms))):
-            for axis in axises:
-                sign = self.delta_sign(axis, i)
-                while self.derivative(axis, i) > self.precision:
-                    self.atoms[i].move(axis, sign * self.delta)
+        if verbose == 1:
+            print("\nCalculating optimal displacment...")
+            for i in tqdm(range(len(self.atoms))):
+                for axis in axises:
+                    sign = self.delta_sign(axis, i)
+                    while True:
+                        if self.derivative(axis, i) < self.precision:
+                            print(f"{i} : {axis} : {self.derivative(axis, i):.4f}  <------- HERE")
+                            break
+                        self.atoms[i].move(axis, sign * self.delta)
+
+                        print(f"{i} : {axis} : {self.derivative(axis, i):.3f}")
+
+        else:
+            for i in range(len(self.atoms)):
+                for axis in axises:
+                    sign = self.delta_sign(axis, i)
+                    while self.derivative(axis, i) > self.precision:
+                        self.atoms[i].move(axis, sign * self.delta)
 
     def print_atoms(self, ):
         """
@@ -421,10 +434,14 @@ class MolecularDynamics(object):
         """
         axises = ['x', 'y', 'z']
         for i in range(len(self.atoms)):
-            if i not in blacklist:
+            if i in blacklist:
+                sign = self.delta_sign('y', i)
+                while self.derivative('y', i) > 0.01:
+                    self.atoms[i].move('y', sign * self.delta)
+            else:
                 for axis in axises:
                     sign = self.delta_sign(axis, i)
-                    while self.derivative(axis, i) > self.precision:
+                    while self.derivative(axis, i) > 0.01:
                         self.atoms[i].move(axis, sign * self.delta)
 
     def pull(self, epsilon):
@@ -435,13 +452,15 @@ class MolecularDynamics(object):
 
 
 def tensile(molecule):
+    molecule.relaxate()
     molecule0 = copy.deepcopy(molecule)
     tensiles = list()
     deformations = list()
     l0 = molecule.findlx()
-    for epsilon in tqdm(range(30)):
-        epsilon = epsilon / 100
-        molecule.pull(epsilon * l0)
+    for epsilon in tqdm(range(10)):
+        epsilon = epsilon * 3 / 100
+        molecule.pull(epsilon)
+
         molecule.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
 
         f1x, _, _, = molecule.grad(2)  # 3
@@ -550,7 +569,34 @@ def find_period(mol, dtime=1, num_iters=1000):
 
 
 def thermal_conductivity(molecule):
-    molecule.relaxate()
+
+    molecule.relaxate(verbose=1)
+    T = 300  # example
+    dT = [20, 40, 60, 80, 100]
+    time = 100
+    molecule.find_velocities(2 * T)  # vx vy=0? vz=0?
+    molecule.find_forces()
+    dtime = 1
+
+    for i in tqdm(range(100)):
+
+        vforces = copy.deepcopy(molecule.forces)
+        for atom, force, velocity in zip(molecule.atoms, molecule.forces, molecule.velocities):
+            atom.x += velocity.x * dtime + 0.5 * force.x * dtime**2 / molecule.mass
+            atom.y += velocity.y * dtime + 0.5 * force.y * dtime**2 / molecule.mass
+            atom.z += velocity.z * dtime + 0.5 * force.z * dtime**2 / molecule.mass
+
+        molecule.find_forces()
+        for vf, force, velocity in zip(molecule, molecule.forces, molecule.velocities):
+            velocity.x += 0.5 * dtime * (vf.x + force.x) / molecule.mass
+            velocity.y += 0.5 * dtime * (vf.y + force.y) / molecule.mass
+            velocity.z += 0.5 * dtime * (vf.z + force.z) / molecule.mass
+
+        if (i % 10) == 0:
+            """
+            Повышаем и понижаем температуру
+            """
+            pass
 
     """
     Изучение теплопроводности
@@ -558,7 +604,7 @@ def thermal_conductivity(molecule):
 
 
 def main():
-    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/si10_1d_chain.xyz"
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/dataex81.xyz"
     MD = MolecularDynamics(filepath=PATH,
                            D0=3.24,
                            r0=2.222,
@@ -571,11 +617,23 @@ def main():
                            two_mu=0.0,
                            R=2.90,
                            D=0.15,
-                           delta=0.001,
-                           precision=0.001)
+                           delta=1e-5,
+                           precision=1e-3)
 
-    thermal_conductivity(MD)
-    MD.atoms_to_file('/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/si10_1d_chain_relaxed.xyz')
+    # x, y = tensile(MD)
+    # plt.plot(x, y)
+    # plt.show()
+    MD.relaxate(verbose=1)
+    for i in range(len(MD.atoms)):
+        print(MD.grad(i))
+    print("\n")
+    # MD.relaxate()
+    # for i in range(len(MD.atoms)):
+    #     print(MD.grad(i))
+    # print("\n")
+    # MD.relaxate()
+    # for i in range(len(MD.atoms)):
+    #     print(MD.grad(i))
 
 
 if __name__ == '__main__':
