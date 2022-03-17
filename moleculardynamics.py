@@ -1,9 +1,11 @@
+import os
 import math
 import copy
 import random
 import numpy as np
 from tqdm import tqdm
 from multiprocessing import Pool
+# from multiprocessing import Process
 from point import Point
 from vector import Vector
 from filereader import FileReader
@@ -497,10 +499,11 @@ class MolecularDynamics(object):
     def relaxate_special(self, blacklist):
         """
         """
+        # max_force_prev = 0.0
         while True:
 
-            self.find_forces_special(blacklist)
-            max_force = self.find_max_abs_force_special(blacklist)
+            self.find_forces()
+            max_force = self.find_max_abs_force()
 
             if max_force < self.precision:
                 break
@@ -519,7 +522,7 @@ def tensile(molecule, epsilons):
     molecule0 = copy.deepcopy(molecule)
     tensiles = list()
     deformations = list()
-    l0 = molecule.findlx()
+    # l0 = molecule.findlx()
     for epsilon in epsilons:
         epsilon = epsilon * 3 / 100
         molecule.pull(epsilon)
@@ -536,6 +539,34 @@ def tensile(molecule, epsilons):
         molecule = copy.deepcopy(molecule0)
 
     return deformations, tensiles
+
+
+def tensile_one_eps(molecule):
+    molecule.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
+
+    f1x = molecule.derivative('x', 2)  # 3
+    f2x = molecule.derivative('x', 4)  # 5
+    f3x = molecule.derivative('x', 8)  # 9
+    f4x = molecule.derivative('x', 9)  # 10
+
+    sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
+    return sigma
+
+
+def tensile_multiprocessing(molecule, epsilons):  # sigmas
+    molecule.relaxate()
+    sigmas = list()
+    molecules = list()
+
+    for epsilon in epsilons:
+        epsilon = epsilon * 3 / 100
+        molecule.pull(epsilon)
+        molecules.append(molecule)
+
+    with Pool(5) as p:
+        sigmas = p.map(tensile_one_eps, molecules)
+
+    return epsilons, sigmas
 
     """
     Изучение прочности
@@ -681,15 +712,31 @@ def main():
                            two_mu=0.0,
                            R=2.90,
                            D=0.15,
-                           delta=1e-3,
+                           delta=1e-2,
                            precision=1e-1)
 
-    with Pool() as p:
-        x, y = tensile(MD, [i for i in range(10)])
+    # with Pool(4) as p:
+    #     x, y = tensile(MD, [i for i in range(10)])
+    # print(x)
+    # print(y)
+    # plt.plot(x, y)
+    # plt.show()
+
+    # x, y = tensile(MD, [i for i in range(10)])
+    # print(x)
+    # print(y)
+    # plt.plot(x, y)
+    # plt.show()
+
+    x, y = tensile_multiprocessing(MD, [i for i in range(10)])
     print(x)
     print(y)
     plt.plot(x, y)
     plt.show()
+
+    # MD.print_atoms()
+    # MD.relaxate_special([2, 4, 8, 9])
+    # MD.print_atoms()
 
     print(f"execution time : {datetime.now() - start_time}")
 
