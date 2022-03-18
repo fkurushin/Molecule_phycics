@@ -600,6 +600,7 @@ def tensile_one_eps(molecule):
 
 def tensile_multiprocessing(molecule, epsilons):  # sigmas
     molecule.relaxate()
+    molecule0 = copy.deepcopy(molecule)
     sigmas = list()
     molecules = list()
 
@@ -607,6 +608,7 @@ def tensile_multiprocessing(molecule, epsilons):  # sigmas
         epsilon = epsilon * 3 / 100
         molecule.pull(epsilon)
         molecules.append(molecule)
+        molecule = copy.deepcopy(molecule0)
 
     with Pool(5) as p:
         sigmas = p.map(tensile_one_eps, molecules)
@@ -773,11 +775,10 @@ def main():
     # plt.plot(x, y)
     # plt.show()
 
-    # x, y = tensile_multiprocessing(MD, [i for i in range(10)])
-    # print(x)
-    # print(y)
-    # plt.plot(x, y)
-    # plt.show()
+    x, y = tensile_multiprocessing(MD, [i for i in range(10)])
+    print(x)
+    print(y)
+    print(f"execution time : {datetime.now() - start_time}")
 
     # MD.print_atoms()
     # MD.relaxate_special([2, 4, 8, 9])
@@ -787,19 +788,19 @@ def main():
     # print(MD.relaxate(verbose=1))
     # print(MD.forces)
 
-    MD.find_forces()
-    epsilon = 0.3
-    MD.pull(epsilon)
-    MD.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
-
-    f1x = MD.derivative(0, 2)  # 3
-    f2x = MD.derivative(0, 4)  # 5
-    f3x = MD.derivative(0, 8)  # 9
-    f4x = MD.derivative(0, 9)  # 10
-
-    sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
-    print(f'epsilon : {epsilon}, sigma : {sigma}')
-    print(f"execution time : {datetime.now() - start_time}")
+    # MD.find_forces()
+    # epsilon = 0.3
+    # MD.pull(epsilon)
+    # MD.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
+    #
+    # f1x = MD.derivative(0, 2)  # 3
+    # f2x = MD.derivative(0, 4)  # 5
+    # f3x = MD.derivative(0, 8)  # 9
+    # f4x = MD.derivative(0, 9)  # 10
+    #
+    # sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
+    # print(f'epsilon : {epsilon}, sigma : {sigma}')
+    # print(f"execution time : {datetime.now() - start_time}")
 
     # MD.find_forces()
     # print(MD.forces)
