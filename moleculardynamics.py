@@ -44,6 +44,9 @@ class MolecularDynamics(object):
         self.forces = np.zeros((len(self.atoms), 3))
         # self.velocities = list()
 
+        global lenght
+        lenght = len(self.atoms)
+
         global axises
         # axises = {0: 'x', 1: 'y', 2: 'z'}
         axises = np.array([0, 1, 2])
@@ -103,7 +106,7 @@ class MolecularDynamics(object):
         Угловая функция
         """
         X = 0
-        for k in range(len(self.atoms)):
+        for k in range(lenght):
             if k != i and k != j:
                 rik = self.r(i, k)
                 rij = self.r(i, j)
@@ -122,8 +125,8 @@ class MolecularDynamics(object):
 
     def calculate_energy(self, ):
         E = 0
-        for i in range(0, len(self.atoms)):
-            for j in range(0, len(self.atoms)):
+        for i in range(lenght):
+            for j in range(lenght):
                 if i > j:
                     rij = self.r(i, j)
                     # print(rij)
@@ -371,12 +374,12 @@ class MolecularDynamics(object):
         Метод для распечатки атомов
         """
         print("Atoms:")
-        for i in range(len(self.atoms)):
+        for i in range(lenght):
             self.atoms[i].print_point()
 
     def atoms_to_file(self, filename):
         with open(filename, "w") as file:
-            file.write(str(len(self.atoms)) + '\n')
+            file.write(str(lenght) + '\n')
             file.write('Si' + '\t' + str(self.atom_radiuses['Si']) + '\n')
             for atom in self.atoms:
                 file.write('Si' + '\t' + str(atom.x) + '\t' + str(atom.y) + '\t' + str(atom.z) + '\n')
@@ -397,7 +400,7 @@ class MolecularDynamics(object):
     def find_velocities(self, T):
         sigma = np.sqrt(8.6 * 10e-5 * 100 * T / self.mass)
         tmp = list()
-        for i in range(len(self.atoms)):
+        for i in range(lenght):
             velocitiy = Point(self.get_rand_num_arr(0, sigma, 1),
                               self.get_rand_num_arr(0, sigma, 1),
                               self.get_rand_num_arr(0, sigma, 1))
@@ -432,7 +435,7 @@ class MolecularDynamics(object):
     # def find_forces_special(self, blacklist):
     #     """
     #     """
-    #     for i in range(len(self.atoms)):
+    #     for i in range(lenght):
     #         fx, fy, fz = self.grad(i)
     #         force = Point(fx, fy, fz)
     #         self.forces.append(force)
@@ -440,15 +443,14 @@ class MolecularDynamics(object):
     def find_forces(self, ):
         """
         """
-        for i in range(len(self.atoms)):
+        for i in range(lenght):
             fx, fy, fz = self.grad(i)
-            force = np.array([fx, fy, fz])
-            self.forces[i] = force
+            self.forces[i] = np.array([fx, fy, fz])
 
     def find_forces_special(self, blacklist):
         """
         """
-        for i in range(len(self.atoms)):
+        for i in range(lenght):
             if i not in blacklist:
                 fx, fy, fz = self.grad(i)
                 force = np.array([fx, fy, fz])
@@ -458,7 +460,7 @@ class MolecularDynamics(object):
     #     """
     #     """
     #     force = list()
-    #     for i in range(len(self.atoms)):
+    #     for i in range(lenght):
     #         fx, fy, fz = self.grad(i)
     #         force.extend([abs(fx), abs(fy), abs(fz)])
     #
@@ -468,7 +470,7 @@ class MolecularDynamics(object):
     #     """
     #     """
     #     force = list()
-    #     for i in range(len(self.atoms)):
+    #     for i in range(lenght):
     #         if i not in blacklist:
     #             fx, fy, fz = self.grad(i)
     #             force.extend([abs(fx), abs(fy), abs(fz)])
@@ -746,7 +748,7 @@ def thermal_conductivity(molecule):
 def main():
     start_time = datetime.now()
     # /mnt/pool/rhic/1/fkurushin/informatics/Molecule_physics/molecules
-    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_phycics/molecules/dataex8.xyz"
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_physics/molecules/dataex8.xyz"
     MD = MolecularDynamics(filepath=PATH,
                            D0=3.24,
                            r0=2.222,
@@ -760,7 +762,7 @@ def main():
                            R=2.90,
                            D=0.15,
                            delta=1e-3,
-                           precision=1e-3)
+                           precision=1e-1)
 
     # with Pool(4) as p:
     #     x, y = tensile(MD, [i for i in range(10)])
@@ -775,10 +777,10 @@ def main():
     # plt.plot(x, y)
     # plt.show()
 
-    x, y = tensile_multiprocessing(MD, [i for i in range(10)])
-    print(x)
-    print(y)
-    print(f"execution time : {datetime.now() - start_time}")
+    # x, y = tensile_multiprocessing(MD, np.array([i for i in range(10)]))
+    # print(x)
+    # print(y)
+    # print(f"execution time : {datetime.now() - start_time}")
 
     # MD.print_atoms()
     # MD.relaxate_special([2, 4, 8, 9])
@@ -813,6 +815,8 @@ def main():
     # print("\n")
     # print(force.max())
 
+    print(MD.grad(0))
+
     # print(MD.atoms[10])
     # print(MD.calculate_energy())
 
@@ -827,6 +831,22 @@ def main():
     # print(force.max())
 
     # print(MD.cos_teta(0, 1, 2))
+
+    # MD.relaxate(verbose=1)
+    # MD0 = copy.deepcopy(MD)
+    # sigmas = list()
+    # molecules = list()
+    # epsilons = np.array([i * 3 / 100 for i in range(10)])
+    # for epsilon in tqdm(epsilons):
+    #     MD.pull(epsilon)
+    #     molecules.append(MD)
+    #     MD = copy.deepcopy(MD0)
+    #
+    # print(epsilons)
+    # print("\n")
+    # print(molecules)
+    # print("\n")
+    # print(f"execution time : {datetime.now() - start_time}")
 
 
 if __name__ == '__main__':
