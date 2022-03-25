@@ -56,10 +56,10 @@ class MolecularDynamics(object):
     """
     def r(self, i, j):
         """
-        Вызывает метод класса Point distance для подсчета модуля радиус-вектора между двумя точками
+        подсчета модуля радиус-вектора между двумя точками
         Имеющими индексы i и j
         """
-        return np.sum(np.sqrt(np.square(self.atoms[i] - self.atoms[j])))
+        return np.sqrt(np.sum(np.square(self.atoms[i] - self.atoms[j])))
 
     def Vr(self, r):
         """
@@ -129,10 +129,9 @@ class MolecularDynamics(object):
             for j in range(lenght):
                 if i > j:
                     rij = self.r(i, j)
-                    # print(rij)
                     mean_b = (self.b(i, j) + self.b(j, i)) / 2
                     Eij = self.fc(rij) * (self.Vr(rij) - mean_b * self.Va(rij))
-                    # print(f'{rij:.2f} \t {self.fc(rij):.2f} \t {self.Vr(rij):.2f} \t {mean_b:.2f} \t {self.Va(rij):.2f}')
+                    # print(f'{Eij:.2f} \t {rij:.2f} \t {self.fc(rij):.2f} \t {self.Vr(rij):.2f} \t {mean_b:.2f} \t {self.Va(rij):.2f}')
                     E = E + Eij
                     Eij = 0
         return E
@@ -424,14 +423,6 @@ class MolecularDynamics(object):
         for i in range(len(self.forces)):
             self.forces[i].print_point()
 
-    def print_forces_numpy(self, ):
-        """
-        Метод для распечатки сил
-        """
-        print("Forces:")
-        for i in range(len(self.forces)):
-            self.forces[i].print_point()
-
     # def find_forces_special(self, blacklist):
     #     """
     #     """
@@ -445,6 +436,7 @@ class MolecularDynamics(object):
         """
         for i in range(lenght):
             fx, fy, fz = self.grad(i)
+            # print(f'fx: {fx:.2f}, fy: {fy:.2f}, fz: {fz:.2f}')
             self.forces[i] = np.array([fx, fy, fz])
 
     def find_forces_special(self, blacklist):
@@ -555,7 +547,7 @@ class MolecularDynamics(object):
 
             if max_force < self.precision:
                 break
-            print(f"energy : {self.calculate_energy():.4f} \t max_force : {max_force:.4f}")
+            # print(f"energy : {self.calculate_energy():.4f} \t max_force : {max_force:.4f}")
             self.move_atoms_special(blacklist)
 
     def pull(self, epsilon):
@@ -762,14 +754,7 @@ def main():
                            R=2.90,
                            D=0.15,
                            delta=1e-3,
-                           precision=1e-1)
-
-    # with Pool(4) as p:
-    #     x, y = tensile(MD, [i for i in range(10)])
-    # print(x)
-    # print(y)
-    # plt.plot(x, y)
-    # plt.show()
+                           precision=1e-2)
 
     # x, y = tensile(MD, [i for i in range(10)])
     # print(x)
@@ -777,24 +762,15 @@ def main():
     # plt.plot(x, y)
     # plt.show()
 
-    # x, y = tensile_multiprocessing(MD, np.array([i for i in range(10)]))
-    # print(x)
-    # print(y)
-    # print(f"execution time : {datetime.now() - start_time}")
-
-    # MD.print_atoms()
-    # MD.relaxate_special([2, 4, 8, 9])
-    # MD.print_atoms()
-
-    # print(MD.atoms)
-    # print(MD.relaxate(verbose=1))
-    # print(MD.forces)
-
-    # MD.find_forces()
+    MD.find_forces()
+    print(f'Forces:\n {MD.forces}')
+    print(f'Atoms:\n {MD.atoms}')
     # epsilon = 0.3
     # MD.pull(epsilon)
-    # MD.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
+    MD.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
     #
+    print(f'Forces:\n {MD.forces}')
+    print(f'Atoms:\n {MD.atoms}')
     # f1x = MD.derivative(0, 2)  # 3
     # f2x = MD.derivative(0, 4)  # 5
     # f3x = MD.derivative(0, 8)  # 9
@@ -803,22 +779,6 @@ def main():
     # sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
     # print(f'epsilon : {epsilon}, sigma : {sigma}')
     # print(f"execution time : {datetime.now() - start_time}")
-
-    # MD.find_forces()
-    # print(MD.forces)
-    # print("\n")
-    # force = abs(MD.forces)
-    # print(force)
-    # print("\n")
-    # force = np.delete(force, [2, 4, 8, 9], axis=0)
-    # print(force)
-    # print("\n")
-    # print(force.max())
-
-    print(MD.grad(0))
-
-    # print(MD.atoms[10])
-    # print(MD.calculate_energy())
 
     # MD.find_forces()
     # print(MD.forces)
@@ -832,21 +792,7 @@ def main():
 
     # print(MD.cos_teta(0, 1, 2))
 
-    # MD.relaxate(verbose=1)
-    # MD0 = copy.deepcopy(MD)
-    # sigmas = list()
-    # molecules = list()
-    # epsilons = np.array([i * 3 / 100 for i in range(10)])
-    # for epsilon in tqdm(epsilons):
-    #     MD.pull(epsilon)
-    #     molecules.append(MD)
-    #     MD = copy.deepcopy(MD0)
-    #
-    # print(epsilons)
-    # print("\n")
-    # print(molecules)
-    # print("\n")
-    # print(f"execution time : {datetime.now() - start_time}")
+    print(f"execution time : {datetime.now() - start_time}")
 
 
 if __name__ == '__main__':

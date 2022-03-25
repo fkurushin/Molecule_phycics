@@ -75,9 +75,7 @@ class FileReader(object):
 
         for line in xyz:
             name, x, y, z = line.split()
-            atom = np.array([float(x), float(y), float(z),
-            # float(atom_radiuses[name])
-            ])
+            atom = np.array([float(x), float(y), float(z)])  # + radiuses
 
             atoms.append(atom)
 
