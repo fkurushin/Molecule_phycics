@@ -42,6 +42,8 @@ class MolecularDynamics(object):
         self.precision = precision
         self.mass = 2912 * len(self.atoms)
         self.forces = np.zeros((len(self.atoms), 3))
+        # self.derivatives = np.zeros((len(self.atoms), 3))
+        self.signs = np.zeros((len(self.atoms), 3))
         # self.velocities = list()
 
         global lenght
@@ -284,88 +286,44 @@ class MolecularDynamics(object):
         atom_i - номер атома, который будем толкать
         """
         Uq = self.calculate_energy()
-        # self.atoms[atom_i].move(axis, self.delta)
         self.atoms[atom_i][axis] += self.delta
+
         Uq_plus_dq = self.calculate_energy()
-        # self.atoms[atom_i].move(axis, -self.delta)
         self.atoms[atom_i][axis] += -self.delta
+
         return (Uq_plus_dq - Uq) / self.delta
 
-    def delta_sign(self, axis, atom_i):
-        """
-        Выбирает направление наискорейшего спуска
-        """
-        if self.derivative(axis, atom_i) > 0:
-            return -1  # Возвращаем -1 чтобы шли в сторону уменьшения функции
-        else:
-            return 1
-
-    # def move_atoms(self, ):
-    #     axises = ['x', 'y', 'z']
-    #     for i, (atom, force) in enumerate(zip(self.atoms, self.forces)):
-    #         for axis in axises:
-    #             sign = self.delta_sign(axis, i)
-    #             if axis == 'x':
-    #                 atom.move(axis, sign * self.delta * abs(force.x))
-    #             if axis == 'y':
-    #                 atom.move(axis, sign * self.delta * abs(force.y))
-    #             if axis == 'z':
-    #                 atom.move(axis, sign * self.delta * abs(force.z))
-    #
-    # def move_atoms_special(self, blacklist):
-    #     axises = ['x', 'y', 'z']
-    #     for i, (atom, force) in enumerate(zip(self.atoms, self.forces)):
-    #         if i not in blacklist:
-    #             for axis in axises:
-    #                 sign = self.delta_sign(axis, i)
-    #                 if axis == 'x':
-    #                     atom.move(axis, sign * self.delta * abs(force.x))
-    #                 if axis == 'y':
-    #                     atom.move(axis, sign * self.delta * abs(force.y))
-    #                 if axis == 'z':
-    #                     atom.move(axis, sign * self.delta * abs(force.z))
-
     def move_atoms(self, ):
-        for i, (atom, force) in enumerate(zip(self.atoms, self.forces)):
-            for axis in axises:
-                sign = self.delta_sign(axis, i)
-                atom[axis] += sign * self.delta * abs(force[axis])
+        for i in range(lenght):
+            self.atoms[i] += np.where(self.forces[i] > 0, -1, 1) * self.delta * abs(self.forces[i])
 
     def move_atoms_special(self, blacklist):
-        for i, (atom, force) in enumerate(zip(self.atoms, self.forces)):
+        for i in range(lenght):
             if i not in blacklist:
-                for axis in axises:
-                    sign = self.delta_sign(axis, i)
-                    atom[axis] += sign * self.delta * abs(force[axis])
+                self.atoms[i] += np.where(self.forces[i] > 0, -1, 1) * self.delta * abs(self.forces[i])
 
     def relaxate(self, verbose=0):
         """
         Определение оптимальной структуры молекулы
         методом градиентного спуска
         """
-        if verbose == 1:
+        self.find_forces()
+        max_force = abs(self.forces).max()
+
+        if verbose != 0:
             print("\nCalculating optimal displacment...")
-            while True:
+            while max_force >= self.precision:
 
                 self.find_forces()
                 max_force = abs(self.forces).max()
-
                 print(f"energy : {self.calculate_energy():.4f} \t max_force : {max_force:.4f}")
-
-                if max_force < self.precision:
-                    break
-
                 self.move_atoms()
 
         else:
-            while True:
+            while max_force >= self.precision:
 
                 self.find_forces()
                 max_force = abs(self.forces).max()
-
-                if max_force < self.precision:
-                    break
-
                 self.move_atoms()
 
     def print_atoms(self, ):
@@ -415,59 +373,19 @@ class MolecularDynamics(object):
         for i in range(len(self.velocities)):
             self.velocities[i].print_point()
 
-    def print_forces(self, ):
-        """
-        Метод для распечатки сил
-        """
-        print("Forces:")
-        for i in range(len(self.forces)):
-            self.forces[i].print_point()
-
-    # def find_forces_special(self, blacklist):
-    #     """
-    #     """
-    #     for i in range(lenght):
-    #         fx, fy, fz = self.grad(i)
-    #         force = Point(fx, fy, fz)
-    #         self.forces.append(force)
-
     def find_forces(self, ):
         """
         """
         for i in range(lenght):
-            fx, fy, fz = self.grad(i)
             # print(f'fx: {fx:.2f}, fy: {fy:.2f}, fz: {fz:.2f}')
-            self.forces[i] = np.array([fx, fy, fz])
+            self.forces[i] = np.array([self.derivative(0, i), self.derivative(1, i), self.derivative(2, i)])
 
     def find_forces_special(self, blacklist):
         """
         """
         for i in range(lenght):
             if i not in blacklist:
-                fx, fy, fz = self.grad(i)
-                force = np.array([fx, fy, fz])
-                self.forces[i] = force
-
-    # def find_max_abs_force(self, ):
-    #     """
-    #     """
-    #     force = list()
-    #     for i in range(lenght):
-    #         fx, fy, fz = self.grad(i)
-    #         force.extend([abs(fx), abs(fy), abs(fz)])
-    #
-    #     return max(force)
-    #
-    # def find_max_abs_force_special(self, blacklist):
-    #     """
-    #     """
-    #     force = list()
-    #     for i in range(lenght):
-    #         if i not in blacklist:
-    #             fx, fy, fz = self.grad(i)
-    #             force.extend([abs(fx), abs(fy), abs(fz)])
-    #
-    #     return max(force)
+                self.forces[i] = np.array([self.derivative(0, i), self.derivative(1, i), self.derivative(2, i)])
 
     def find_max_abs_force(self, ):
         """
@@ -540,44 +458,19 @@ class MolecularDynamics(object):
     def relaxate_special(self, blacklist):
         """
         """
-        while True:
+        max_force = self.find_max_abs_force_special(blacklist)
+
+        while max_force >= self.precision:
 
             self.find_forces()
             max_force = self.find_max_abs_force_special(blacklist)
-
-            if max_force < self.precision:
-                break
             # print(f"energy : {self.calculate_energy():.4f} \t max_force : {max_force:.4f}")
             self.move_atoms_special(blacklist)
 
     def pull(self, epsilon):
-        for idx, atom in enumerate(self.atoms):
+        for idx in range(lenght):
             if idx != 2 and idx != 4:  # 3 5
-                atom[0] *= (1 + epsilon)
-
-
-def tensile(molecule, epsilons):
-    molecule.relaxate()
-    molecule0 = copy.deepcopy(molecule)
-    tensiles = list()
-    deformations = list()
-    # l0 = molecule.findlx()
-    for epsilon in epsilons:
-        epsilon = epsilon * 3 / 100
-        molecule.pull(epsilon)
-        molecule.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
-
-        f1x = molecule.derivative(0, 2)  # 3
-        f2x = molecule.derivative(0, 4)  # 5
-        f3x = molecule.derivative(0, 8)  # 9
-        f4x = molecule.derivative(0, 9)  # 10
-
-        sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
-        tensiles.append(sigma)
-        deformations.append(epsilon)
-        molecule = copy.deepcopy(molecule0)
-
-    return deformations, tensiles
+                self.atoms[idx][0] *= (1 + epsilon)
 
 
 def tensile_one_eps(molecule):
@@ -594,7 +487,7 @@ def tensile_one_eps(molecule):
 
 def tensile_multiprocessing(molecule, epsilons):  # sigmas
     molecule.relaxate()
-    molecule0 = copy.deepcopy(molecule)
+    molecule0 = molecule
     sigmas = list()
     molecules = list()
 
@@ -602,9 +495,9 @@ def tensile_multiprocessing(molecule, epsilons):  # sigmas
         epsilon = epsilon * 3 / 100
         molecule.pull(epsilon)
         molecules.append(molecule)
-        molecule = copy.deepcopy(molecule0)
+        molecule = molecule0
 
-    with Pool(5) as p:
+    with Pool(10) as p:
         sigmas = p.map(tensile_one_eps, molecules)
 
     return (epsilons * 3 / 100), sigmas
@@ -754,44 +647,22 @@ def main():
                            R=2.90,
                            D=0.15,
                            delta=1e-3,
-                           precision=1e-2)
+                           precision=1e-3)
 
-    # x, y = tensile(MD, [i for i in range(10)])
-    # print(x)
-    # print(y)
+    x, y = tensile_multiprocessing(MD, [i for i in range(10)])
+    print(x)
+    print(y)
     # plt.plot(x, y)
     # plt.show()
 
-    MD.find_forces()
-    print(f'Forces:\n {MD.forces}')
-    print(f'Atoms:\n {MD.atoms}')
-    # epsilon = 0.3
-    # MD.pull(epsilon)
-    MD.relaxate_special([2, 4, 8, 9])  # 3 5 9 10
-    #
-    print(f'Forces:\n {MD.forces}')
-    print(f'Atoms:\n {MD.atoms}')
-    # f1x = MD.derivative(0, 2)  # 3
-    # f2x = MD.derivative(0, 4)  # 5
-    # f3x = MD.derivative(0, 8)  # 9
-    # f4x = MD.derivative(0, 9)  # 10
-    #
-    # sigma = (abs(f1x) + abs(f2x) + abs(f3x) + abs(f4x)) / 40
-    # print(f'epsilon : {epsilon}, sigma : {sigma}')
-    # print(f"execution time : {datetime.now() - start_time}")
+    # f0 = np.array([MD.derivative(i, 0) for i in range(3)])
+    # sign = np.where(f0 > 0, -1, 1)
+    # print(sign)
 
     # MD.find_forces()
     # print(MD.forces)
-    # print('\n')
-    # force = abs(MD.forces)
-    # print(force)
-    # print('\n')
-    # print(np.delete(force, [2, 4, 8, 9], axis=0))
-    # print('\n')
-    # print(force.max())
-
-    # print(MD.cos_teta(0, 1, 2))
-
+    # MD.relaxate_special([2, 4, 8, 9])
+    # print(MD.forces)
     print(f"execution time : {datetime.now() - start_time}")
 
 
