@@ -8,6 +8,7 @@ from tqdm import tqdm
 from multiprocessing import Pool
 # from multiprocessing import Process
 from point import Point
+from functools import partial
 from vector import Vector
 from filereader import FileReader
 import matplotlib.pyplot as plt
@@ -42,15 +43,12 @@ class MolecularDynamics(object):
         self.precision = precision
         self.mass = 2912 * len(self.atoms)
         self.forces = np.zeros((len(self.atoms), 3))
-        # self.derivatives = np.zeros((len(self.atoms), 3))
         self.signs = np.zeros((len(self.atoms), 3))
-        # self.velocities = list()
+        self.velocities = np.zeros((len(self.atoms), 3))
 
-        global lenght
-        lenght = len(self.atoms)
+        self.lenght = len(self.atoms)
 
         global axises
-        # axises = {0: 'x', 1: 'y', 2: 'z'}
         axises = np.array([0, 1, 2])
 
     """
@@ -108,7 +106,7 @@ class MolecularDynamics(object):
         Угловая функция
         """
         X = 0
-        for k in range(lenght):
+        for k in range(self.lenght):
             if k != i and k != j:
                 rik = self.r(i, k)
                 rij = self.r(i, j)
@@ -127,8 +125,8 @@ class MolecularDynamics(object):
 
     def calculate_energy(self, ):
         E = 0
-        for i in range(lenght):
-            for j in range(lenght):
+        for i in range(self.lenght):
+            for j in range(self.lenght):
                 if i > j:
                     rij = self.r(i, j)
                     mean_b = (self.b(i, j) + self.b(j, i)) / 2
@@ -144,16 +142,9 @@ class MolecularDynamics(object):
     """
     MOLECULEVOLUME
     """
-    def add_new(self, atoms, radiuses):
-        '''
-        PseudoКонструктор класса
-        '''
-        self.atoms = atoms
-        self.atom_radiuses = radiuses
-
     def find_parallelepiped(self):
         '''
-        Находит координаты параллелепипеда
+        Находит координаты параллелепипеда НАДО ПЕРЕПИСАТЬ
         '''
         list_x = list()
         list_y = list()
@@ -193,14 +184,14 @@ class MolecularDynamics(object):
 
     def parallelepiped_volume(self, dict):
         '''
-        Считает объем параллелепипеда
+        Считает объем параллелепипеда НАДО ПЕРЕПИСАТЬ
         '''
         v = (dict['x'][1] - dict['x'][0]) * (dict['y'][1] - dict['y'][0]) * (dict['z'][1] - dict['z'][0])
         return v
 
     def random_point_in_paral(self, dict):
         '''
-        Создает рандомную точку в параллелепипеде
+        Создает рандомную точку в параллелепипеде НАДО ПЕРЕПИСАТЬ
         '''
         x = random.uniform(dict['x'][0], dict['x'][1])
         y = random.uniform(dict['y'][0], dict['y'][1])
@@ -210,7 +201,7 @@ class MolecularDynamics(object):
     def calculate_volume(self, precision, n_experiments, alpha, verbose=0):
         '''
         Расчитывает объем молекулы методом Монте Карло при заданной точности, считает погрешность,
-        Можно регулировать количество измеренией
+        Можно регулировать количество измеренией НАДО ПЕРЕПИСАТЬ
         '''
         volumes = list()
         parall_cords = self.find_parallelepiped()
@@ -294,11 +285,11 @@ class MolecularDynamics(object):
         return (Uq_plus_dq - Uq) / self.delta
 
     def move_atoms(self, ):
-        for i in range(lenght):
+        for i in range(self.lenght):
             self.atoms[i] += np.where(self.forces[i] > 0, -1, 1) * self.delta * abs(self.forces[i])
 
     def move_atoms_special(self, blacklist):
-        for i in range(lenght):
+        for i in range(self.lenght):
             if i not in blacklist:
                 self.atoms[i] += np.where(self.forces[i] > 0, -1, 1) * self.delta * abs(self.forces[i])
 
@@ -331,12 +322,12 @@ class MolecularDynamics(object):
         Метод для распечатки атомов
         """
         print("Atoms:")
-        for i in range(lenght):
+        for i in range(self.lenght):
             self.atoms[i].print_point()
 
     def atoms_to_file(self, filename):
         with open(filename, "w") as file:
-            file.write(str(lenght) + '\n')
+            file.write(str(self.lenght) + '\n')
             file.write('Si' + '\t' + str(self.atom_radiuses['Si']) + '\n')
             for atom in self.atoms:
                 file.write('Si' + '\t' + str(atom.x) + '\t' + str(atom.y) + '\t' + str(atom.z) + '\n')
@@ -355,49 +346,42 @@ class MolecularDynamics(object):
     VERLEMETHOD
     """
     def find_velocities(self, T):
-        sigma = np.sqrt(8.6 * 10e-5 * 100 * T / self.mass)
-        tmp = list()
-        for i in range(lenght):
-            velocitiy = Point(self.get_rand_num_arr(0, sigma, 1),
-                              self.get_rand_num_arr(0, sigma, 1),
-                              self.get_rand_num_arr(0, sigma, 1))
-            tmp.append(velocitiy)
+        # k = 0.00008617
+        # sigma = np.sqrt(k * T / 2700)
+        # for i in range(self.lenght):
+        #     self.velocities[i] = np.random.normal(0, sigma, 3)
 
-        self.velocities = tmp
+        m_si = 2912
+        for i in range(self.lenght):
+            for j in range(3):
+                phi = random.uniform(0, 2 * np.pi)
+                r = random.uniform(0.0000001, 1)
 
-    def print_velocities(self, ):
-        """
-        Метод для распечатки атомов
-        """
-        print("Velocities:")
-        for i in range(len(self.velocities)):
-            self.velocities[i].print_point()
+                ro = np.sqrt(-2 * np.log(r))
+                x = ro * np.cos(6.28 * phi)
+                k = 0.00008617
+                mu = 0
+                sigma = np.sqrt(2 * k * T / m_si)
+                self.velocities[i][j] = mu + sigma * x
 
     def find_forces(self, ):
         """
         """
-        for i in range(lenght):
+        for i in range(self.lenght):
             # print(f'fx: {fx:.2f}, fy: {fy:.2f}, fz: {fz:.2f}')
             self.forces[i] = np.array([self.derivative(0, i), self.derivative(1, i), self.derivative(2, i)])
 
     def find_forces_special(self, blacklist):
         """
         """
-        for i in range(lenght):
+        for i in range(self.lenght):
             if i not in blacklist:
                 self.forces[i] = np.array([self.derivative(0, i), self.derivative(1, i), self.derivative(2, i)])
-
-    def find_max_abs_force(self, ):
-        """
-        """
-        force = abs(self.forces)
-        return force.max()
 
     def find_max_abs_force_special(self, blacklist):
         """
         """
-        force = np.delete(abs(self.forces), blacklist, axis=0)
-        return force.max()
+        return np.delete(abs(self.forces), blacklist, axis=0).max()
 
     def find_volume(self, T, dtime=1, num_iters=1000, error=True):
         """
@@ -437,40 +421,26 @@ class MolecularDynamics(object):
     """
     Изучение прочности
     """
-    # def findlx(self, ):
-    #     lst = list()
-    #     for atom in self.atoms:
-    #         lst.append(atom.x)
-    #     return max(lst) - min(lst)
-    #
-    # def findly(self, ):
-    #     lst = list()
-    #     for atom in self.atoms:
-    #         lst.append(atom.y)
-    #     return max(lst) - min(lst)
-    #
-    # def findlz(self, ):
-    #     lst = list()
-    #     for atom in self.atoms:
-    #         lst.append(atom.z)
-    #     return max(lst) - min(lst)
-
     def relaxate_special(self, blacklist):
         """
         """
-        max_force = self.find_max_abs_force_special(blacklist)
+        max_force = np.delete(abs(self.forces), blacklist, axis=0).max()
 
         while max_force >= self.precision:
 
             self.find_forces()
-            max_force = self.find_max_abs_force_special(blacklist)
-            # print(f"energy : {self.calculate_energy():.4f} \t max_force : {max_force:.4f}")
+            max_force = np.delete(abs(self.forces), blacklist, axis=0).max()
+            print(f"energy : {self.calculate_energy():.4f} \t max_force : {max_force:.4f}")
             self.move_atoms_special(blacklist)
 
     def pull(self, epsilon):
-        for idx in range(lenght):
+        for idx in range(self.lenght):
             if idx != 2 and idx != 4:  # 3 5
                 self.atoms[idx][0] *= (1 + epsilon)
+
+    def kinetic_energy(self, ):
+        m_si = 2912
+        return m_si * np.sum(self.velocities**2) / 2
 
 
 def tensile_one_eps(molecule):
@@ -487,182 +457,246 @@ def tensile_one_eps(molecule):
 
 def tensile_multiprocessing(molecule, epsilons):  # sigmas
     molecule.relaxate()
-    molecule0 = molecule
+    molecule0 = copy.deepcopy(molecule)
     sigmas = list()
     molecules = list()
+    eps_new = list()
 
     for epsilon in epsilons:
-        epsilon = epsilon * 3 / 100
+        epsilon = epsilon * 4 / 100
         molecule.pull(epsilon)
         molecules.append(molecule)
-        molecule = molecule0
+        molecule = copy.deepcopy(molecule0)
+        eps_new.append(epsilon)
 
-    with Pool(10) as p:
+    with Pool() as p:
         sigmas = p.map(tensile_one_eps, molecules)
 
-    return (epsilons * 3 / 100), sigmas
+    return eps_new, sigmas
 
     """
     Изучение прочности
     """
 
+
+def thermal_test(molecule, num_steps=100):
     """
-    Изучение термосопротивления
+    Определить термическую устойчивость своей структуры, то есть Тмакс при которой, она может прожить 10пикосекунд, с точностью то 100 градусов К
+    1) Отрелаксировать
+    2) Нагреть до T хз и подождать 10 пикосекунд
+    3) Отрелаксировать
+    4) Оптимальная энергия
+    5) Если Е0=Е1
+    5) Значит не распалась
+    6) Значит Т выше! (0 оценка - Тплав кремния, при которой точно распадется и понижать Т, делением поплоам например при 300К не распадется)
+    7) Ищем Т макс
     """
-    def thermal_test(self, T):
-        """
-        Определить термическую устойчивость своей структуры, то есть Тмакс при которой, она может прожить 10пикосекунд, с точностью то 100 градусов К
-        1) Отрелаксировать
-        2) Нагреть до T хз и подождать 10 пикосекунд
-        3) Отрелаксировать
-        4) Оптимальная энергия
-        5) Если Е0=Е1
-        5) Значит не распалась
-        6) Значит Т выше! (0 оценка - Тплав кремния, при которой точно распадется и понижать Т, делением поплоам например при 300К не распадется)
-        7) Ищем Т макс
-        """
-        self.find_velocities(T)
-        self.find_forces()
+
+    T = np.array([500 * i for i in range(1, 10)])
+    energy = np.zeros(num_steps)
+    energy_mean = np.zeros(len(T))
+
+    for i in tqdm(range(len(T))):
+
+        molecule.find_velocities(T[i])
         dtime = 1
-        f = np.zeros([10, 3])
-        volumes = np.zeros(50)
-        for i in tqdm(range(1000)):
-            for atom, force, velocity in zip(self.atoms, self.forces, self.velocities):
-                atom.x += velocity.x * dtime + 0.5 * force.x * dtime**2 / self.mass
-                atom.y += velocity.y * dtime + 0.5 * force.y * dtime**2 / self.mass
-                atom.z += velocity.z * dtime + 0.5 * force.z * dtime**2 / self.mass
+        for j in range(num_steps):
+            molecule.atoms += molecule.velocities * dtime + 0.5 * molecule.forces * dtime**2 / molecule.mass
+            vf = molecule.forces
+            molecule.find_forces()
+            molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / molecule.mass
+            energy[j] = molecule.calculate_energy()
 
-            vforces = self.forces
-            self.find_forces()
+        energy_mean[i] = energy.mean()
 
-            for vf, force, velocity in zip(vforces, self.forces, self.velocities):
-                velocity.x += 0.5 * dtime * (vf.x + force.x) / self.mass
-                velocity.y += 0.5 * dtime * (vf.y + force.y) / self.mass
-                velocity.z += 0.5 * dtime * (vf.z + force.z) / self.mass
+    return T, energy_mean
 
 
-def checkEquality(mol_base, mol):
-    mol.relaxate()
-    if np.abs(mol_base.calculate_energy() - mol.calculate_energy()) < 0.001:
-        return "Molecule is ok"
-    return "Molecule has been desintegrated"
-
-
-def thermalResistance(mol, T):
-    mol_base = mol
-    mol.thermal_test(T)
-    print(checkEquality(mol_base, mol))
-    mol.print_atoms()
-
-
-def find_period(mol, dtime=1, num_iters=1000):
+def thermal_conductivity_one_processing(dT, time=100, T=300, relax=False):
     """
-    Метод для придачи движения атомам
+    1) 14 атомов 1D цепочка 2А
+    2) Отрелаксировать только вдоль оси x
+    3) Придать всем атомам случайные скорости temp =  2T
+    4) Запустить алгоритм Верле
+    5) Каждые 10 шагов умножать скорости первых 3 атомов на K > 1 K = m/2(v1**2 + V2**2 + v3**2), а Kдолжна = 3 * 3/2k(T+T/2)
+    Отсюда к-цент => k = sqrt(kдолж / k). k для последних трех атомов Kдолжна = 3 * 3/2k(T-T/2)
+    6) time = 100 шагов dtime = 1 T = 300K dT = 20 40 60 80 100
+    7) График J от dT, где J = kдолжн - k
     """
-    print(f"Calculating period")
-    atoms0 = np.array([[0.2, 0.0, 0.0], [0.0, 0.0, 0.0]], np.float32)
-    t_prev = 0
-    mol.find_velocities(300)
-    mol.find_forces()
-    vforces = mol.forces
-    for t in tqdm(range(num_iters)):
-        for atom, force, velocity in zip(mol.atoms, mol.forces, mol.velocities):
-            atom.x += velocity.x * dtime + 0.5 * force.x * dtime**2 / 2912
-            atom.y += velocity.y * dtime + 0.5 * force.y * dtime**2 / 2912
-            atom.z += velocity.z * dtime + 0.5 * force.z * dtime**2 / 2912
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_physics/molecules/si14_1d_chain.xyz"
+    molecule = MolecularDynamics(filepath=PATH,
+                                 D0=3.24,
+                                 r0=2.222,
+                                 S=1.57,
+                                 Betta=1.4760,
+                                 gamma=0.09253,
+                                 c=1.13681,
+                                 d=0.63397,
+                                 h=0.335,
+                                 two_mu=0.0,
+                                 R=2.90,
+                                 D=0.15,
+                                 delta=1e-3,
+                                 precision=1e-3)
 
-        vforces = mol.forces
-        mol.find_forces()
-        for vf, force, velocity in zip(vforces, mol.forces, mol.velocities):
-            velocity.x += 0.5 * dtime * (vf.x + force.x) / 2912
-            velocity.y += 0.5 * dtime * (vf.y + force.y) / 2912
-            velocity.z += 0.5 * dtime * (vf.z + force.z) / 2912
-
-        if np.abs(0.2 - mol.atoms[0].x) < 0.1 and np.abs(0.0 - mol.atoms[1].x) < 0.1:
-            print(t, t - t_prev)
-            t_prev = t
-        # if t < 2:
-        #     print("0")
-        #     mol.print_atoms()
-
-    """
-    Изучение термосопротивления
-    """
-
-    """
-    Изучение теплопроводности
-    """
-    # Вариант 4
-
-
-def thermal_conductivity(molecule):
-
-    molecule.relaxate(verbose=1)
-    T = 300  # example
-    dT = [20, 40, 60, 80, 100]
-    time = 100
-    molecule.find_velocities(2 * T)  # vx vy=0? vz=0?
-    molecule.find_forces()
+    if relax is True:
+        molecule.relaxate()
+    molecule.find_velocities(2 * T)
+    k = 8.62 * 10e-5
     dtime = 1
 
-    for i in tqdm(range(100)):
-
-        vforces = copy.deepcopy(molecule.forces)
-        for atom, force, velocity in zip(molecule.atoms, molecule.forces, molecule.velocities):
-            atom.x += velocity.x * dtime + 0.5 * force.x * dtime**2 / molecule.mass
-            atom.y += velocity.y * dtime + 0.5 * force.y * dtime**2 / molecule.mass
-            atom.z += velocity.z * dtime + 0.5 * force.z * dtime**2 / molecule.mass
-
+    for t in range(time):
+        molecule.atoms += molecule.velocities * dtime + 0.5 * molecule.forces * dtime**2 / molecule.mass
+        vf = molecule.forces
         molecule.find_forces()
-        for vf, force, velocity in zip(molecule, molecule.forces, molecule.velocities):
-            velocity.x += 0.5 * dtime * (vf.x + force.x) / molecule.mass
-            velocity.y += 0.5 * dtime * (vf.y + force.y) / molecule.mass
-            velocity.z += 0.5 * dtime * (vf.z + force.z) / molecule.mass
+        molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / molecule.mass
 
-        if (i % 10) == 0:
-            """
-            Повышаем и понижаем температуру
-            """
-            pass
+        if t % 10 == 0:
+            coefficinet = np.sqrt((3 * 3 / 2 * k * (T + dT / 2)) / (2912 / 2 * (molecule.velocities[0]**2 + molecule.velocities[1]**2 + molecule.velocities[2]**2)))
+            molecule.velocities[0] *= coefficinet
+            molecule.velocities[1] *= coefficinet
+            molecule.velocities[2] *= coefficinet
+
+            coefficinet = np.sqrt((3 * 3 / 2 * k * (T - dT / 2)) / (2912 / 2 * (molecule.velocities[-1]**2 + molecule.velocities[-2]**2 + molecule.velocities[-3]**2)))
+            molecule.velocities[-1] *= coefficinet
+            molecule.velocities[-2] *= coefficinet
+            molecule.velocities[-3] *= coefficinet
+
+        return 3 * 3 / 2 * k * (T + dT / 2) - 2912 / 2 * (molecule.velocities[0][0]**2 + molecule.velocities[1][0]**2 + molecule.velocities[2][0]**2)
+
+
+def thermal_conductivity_multiprocessing():
+    """
+    Используя этот метод, я не могу инициализировать класс в main функции
+    """
+    with Pool(5) as p:
+        J = p.map(thermal_conductivity_one_processing, [20, 40, 60, 80, 100])
+
+    return [20, 40, 60, 80, 100], J
+
+
+def thermal_conductivity(molecule, dT_list, time=100, T=300, relax=False):
+    """
+    1) 14 атомов 1D цепочка 2А
+    2) Отрелаксировать только вдоль оси x
+    3) Придать всем атомам случайные скорости temp =  2T
+    4) Запустить алгоритм Верле
+    5) Каждые 10 шагов умножать скорости первых 3 атомов на K > 1 K = m/2(v1**2 + V2**2 + v3**2), а Kдолжна = 3 * 3/2k(T+T/2)
+    Отсюда к-цент => k = sqrt(kдолж / k). k для последних трех атомов Kдолжна = 3 * 3/2k(T-T/2)
+    6) time = 100 шагов dtime = 1 T = 300K dT = 20 40 60 80 100
+    7) График J от dT, где J = kдолжн - k
+    """
+    J = list()
+    if relax is True:
+        molecule.relaxate()
+    molecule.find_velocities(2 * T)
+    k = 8.62 * 10e-5
+    dtime = 1
+
+    for dT in tqdm(dT_list):
+        for t in range(time):
+            molecule.atoms += molecule.velocities * dtime + 0.5 * molecule.forces * dtime**2 / molecule.mass
+            vf = molecule.forces
+            molecule.find_forces()
+            molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / molecule.mass
+
+            if t % 10 == 0:
+                coefficinet = np.sqrt((3 * 3 / 2 * k * (T + dT / 2)) / (2912 / 2 * (molecule.velocities[0]**2 + molecule.velocities[1]**2 + molecule.velocities[2]**2)))
+                molecule.velocities[0] *= coefficinet
+                molecule.velocities[1] *= coefficinet
+                molecule.velocities[2] *= coefficinet
+
+                coefficinet = np.sqrt((3 * 3 / 2 * k * (T - dT / 2)) / (2912 / 2 * (molecule.velocities[-1]**2 + molecule.velocities[-2]**2 + molecule.velocities[-3]**2)))
+                molecule.velocities[-1] *= coefficinet
+                molecule.velocities[-2] *= coefficinet
+                molecule.velocities[-3] *= coefficinet
+
+        J.append(3 * 3 / 2 * k * (T + dT / 2) - 2912 / 2 * (molecule.velocities[0][0]**2 + molecule.velocities[1][0]**2 + molecule.velocities[2][0]**2))
+
+    return J
 
     """
-    Изучение теплопроводности
+    Изучение термосопротивления
+    """
+
+    """
+    Калориметрическая кривая
+    """
+
+
+def calorimetry_curve(molecule, T):
+    time = 10
+    dtime = 1
+    k = 1 / 11602
+
+    molecule.find_velocities(T)
+    kinetic_energy = molecule.kinetic_energy()
+    temperature = np.zeros(time)
+    for t in range(time):
+        molecule.atoms += molecule.velocities * dtime + 0.5 * molecule.forces * dtime**2 / 2912
+        vf = molecule.forces
+        molecule.find_forces()
+        molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / 2912
+        temperature[t] = 2 / 3 * 1 / (molecule.lenght * k) * molecule.kinetic_energy()
+
+    return kinetic_energy, np.mean(temperature)
+
+
+def calorimetry_curve_multiprocessing(molecule, T=[0, 200, 400, 600, 800, 1000], relax=False):
+    if relax is True:
+        molecule.relaxate()
+
+    with Pool(6) as p:
+        Q_temperature = p.map(partial(calorimetry_curve, molecule), T)
+
+    return Q_temperature
+
+    """
+    Калориметрическая кривая
     """
 
 
 def main():
     start_time = datetime.now()
-    # /mnt/pool/rhic/1/fkurushin/informatics/Molecule_physics/molecules
-    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_physics/molecules/dataex8.xyz"
-    MD = MolecularDynamics(filepath=PATH,
-                           D0=3.24,
-                           r0=2.222,
-                           S=1.57,
-                           Betta=1.4760,
-                           gamma=0.09253,
-                           c=1.13681,
-                           d=0.63397,
-                           h=0.335,
-                           two_mu=0.0,
-                           R=2.90,
-                           D=0.15,
-                           delta=1e-3,
-                           precision=1e-3)
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_physics/molecules/Si6.xyz"
+    molecule = MolecularDynamics(filepath=PATH,
+                                 D0=3.24,
+                                 r0=2.222,
+                                 S=1.57,
+                                 Betta=1.4760,
+                                 gamma=0.09253,
+                                 c=1.13681,
+                                 d=0.63397,
+                                 h=0.335,
+                                 two_mu=0.0,
+                                 R=2.90,
+                                 D=0.15,
+                                 delta=1e-3,
+                                 precision=1e-3)
+    Q_temperature = calorimetry_curve_multiprocessing(molecule)
 
-    x, y = tensile_multiprocessing(MD, [i for i in range(10)])
-    print(x)
-    print(y)
-    # plt.plot(x, y)
-    # plt.show()
+    temperature = list()
+    kinetic_energy = list()
+    for elem in Q_temperature:
+        kinetic_energy.append(elem[0])
+        temperature.append(elem[1])
 
-    # f0 = np.array([MD.derivative(i, 0) for i in range(3)])
-    # sign = np.where(f0 > 0, -1, 1)
-    # print(sign)
+    print(kinetic_energy)
+    print(temperature)
+    plt.plot(temperature, kinetic_energy)
+    plt.xlabel('Температура')
+    plt.ylabel('Кинетическая энергия')
+    plt.show()
 
-    # MD.find_forces()
-    # print(MD.forces)
-    # MD.relaxate_special([2, 4, 8, 9])
-    # print(MD.forces)
+    # molecule.find_velocities(300)
+    # print(1e+5 * np.mean(abs(molecule.velocities)))
+    # molecule.find_velocities(600)
+    # print(1e+5 * np.mean(abs(molecule.velocities)))
+    # molecule.find_velocities(900)
+    # print(1e+5 * np.mean(abs(molecule.velocities)))
+    # molecule.find_velocities(1200)
+    # print(1e+5 * np.mean(abs(molecule.velocities)))
+
     print(f"execution time : {datetime.now() - start_time}")
 
 
