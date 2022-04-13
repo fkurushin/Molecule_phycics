@@ -742,7 +742,8 @@ def main():
                                  delta=1e-3,
                                  precision=1e-3)
 
-    spectrum_plot(molecule, 100000)
+    # spectrum_plot(molecule, 100000)
+    print(molecule.calculate_volume(0.01, 10, 0.95))
 
     print(f"execution time : {datetime.now() - start_time}")
 
