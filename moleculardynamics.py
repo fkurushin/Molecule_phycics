@@ -41,7 +41,8 @@ class MolecularDynamics(object):
 
         self.delta = delta
         self.precision = precision
-        self.mass = 2912 * len(self.atoms)
+        self.m = 2912
+        self.mass = self.m * len(self.atoms)
         self.forces = np.zeros((len(self.atoms), 3))
         self.signs = np.zeros((len(self.atoms), 3))
         self.velocities = np.zeros((len(self.atoms), 3))
@@ -338,6 +339,13 @@ class MolecularDynamics(object):
         Возвращает градиент функции
         """
         return self.derivative(0, atom_i), self.derivative(1, atom_i), self.derivative(2, atom_i)
+
+    # Изменить одну из координат на шаг step для atom
+    def move_i_coord(self, step, atom, coord):
+        new_coords = self.atoms[atom].copy()
+        new_coords[coord] = new_coords[coord] + step
+        self.atoms[atom] = new_coords
+
     """
     END
     """
@@ -655,6 +663,66 @@ def calorimetry_curve_multiprocessing(molecule, T=[0, 200, 400, 600, 800, 1000],
     Калориметрическая кривая
     """
 
+    """
+    Спектр молекулы
+    """
+
+
+def second_deriv_E(mol, i, j):
+    atom_i, coord_i = (i // 3, i % 3)
+    atom_j, coord_j = (j // 3, j % 3)
+    mol_move = copy.copy(mol)
+    mol_move.move_i_coord(mol.delta, atom_i, coord_i)
+    mol_move.move_i_coord(-mol.delta, atom_j, coord_j)
+    E_ul = mol_move.calculate_energy()
+    mol_move.move_i_coord(-2 * mol.delta, atom_i, coord_i)
+    E_dl = mol_move.calculate_energy()
+    mol_move.move_i_coord(2 * mol.delta, atom_j, coord_j)
+    E_dr = mol_move.calculate_energy()
+    mol_move.move_i_coord(2 * mol.delta, atom_i, coord_i)
+    E_ur = mol_move.calculate_energy()
+    second_deriv = ((E_ur - E_ul) - (E_dr - E_dl)) / (4 * mol.delta ** 2)
+    return second_deriv
+
+
+def second_deriv_E_matrix(mol):
+    sd_matrix = np.array([[second_deriv_E(mol, i, j) for i in range(3 * mol.lenght)] for j in range(3 * mol.lenght)])
+    return sd_matrix
+
+
+def spectrum_vals(omegas, min_val, max_val, dots):
+    sigma = 1
+    sum_of_gausses = 0
+    spectrum_dots = np.empty(dots)
+    omega_dots = np.arange(min_val, max_val, (max_val - min_val) / dots)
+    i = 0
+    for omega in omega_dots:
+        for omega_k in omegas:
+            sum_of_gausses += np.exp(-(omega - omega_k) ** 2 / (2 * sigma ** 2))
+        spectrum_dots[i] = sum_of_gausses
+        sum_of_gausses = 0
+        i += 1
+    return (spectrum_dots, omega_dots)
+
+
+def spectrum_plot(mol, dots):
+    sd_matrix = second_deriv_E_matrix(mol)
+    eigen_values = np.linalg.eig(sd_matrix)[0]
+    omegas = np.array([(1 / mol.m) * abs(eigen_values[i]) ** 0.5 * (10 ** 15) / (3 * 10 ** 9) for i in range(eigen_values.size) if np.abs(eigen_values[i]) > 0.01])
+    min_val = omegas.min() * 0
+    max_val = omegas.max() * 1.1
+    spectrum_dots, omega_dots = spectrum_vals(omegas, min_val, max_val, dots)
+    fig, ax = plt.subplots()
+    ax.plot(omega_dots, spectrum_dots)
+    fig.set_figwidth(12)
+    fig.set_figheight(7)
+    ax.set_title('Спектр')
+    plt.show()
+
+    """
+    Спектр молекулы
+    """
+
 
 def main():
     start_time = datetime.now()
@@ -673,29 +741,8 @@ def main():
                                  D=0.15,
                                  delta=1e-3,
                                  precision=1e-3)
-    Q_temperature = calorimetry_curve_multiprocessing(molecule)
 
-    temperature = list()
-    kinetic_energy = list()
-    for elem in Q_temperature:
-        kinetic_energy.append(elem[0])
-        temperature.append(elem[1])
-
-    print(kinetic_energy)
-    print(temperature)
-    plt.plot(temperature, kinetic_energy)
-    plt.xlabel('Температура')
-    plt.ylabel('Кинетическая энергия')
-    plt.show()
-
-    # molecule.find_velocities(300)
-    # print(1e+5 * np.mean(abs(molecule.velocities)))
-    # molecule.find_velocities(600)
-    # print(1e+5 * np.mean(abs(molecule.velocities)))
-    # molecule.find_velocities(900)
-    # print(1e+5 * np.mean(abs(molecule.velocities)))
-    # molecule.find_velocities(1200)
-    # print(1e+5 * np.mean(abs(molecule.velocities)))
+    spectrum_plot(molecule, 100000)
 
     print(f"execution time : {datetime.now() - start_time}")
 
