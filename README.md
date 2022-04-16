@@ -11,4 +11,5 @@ Possibilities of this packages:
 * Learning tensile properties (multiprocessing)
 * Thermal conductivity tests (multiprocessing)
 * Building a calorimetry curve (multiprocessing)
-* Molecular spectrum
+* Molecular spectrum obtained with second derivative
+* Molecular spectrum obtained with autocorrelation function

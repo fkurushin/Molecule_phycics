@@ -12,6 +12,7 @@ from functools import partial
 from vector import Vector
 from filereader import FileReader
 import matplotlib.pyplot as plt
+import scipy.integrate as integrate
 
 from datetime import datetime
 import time
@@ -20,7 +21,7 @@ import time
 class MolecularDynamics(object):
     """docstring for MolecularDynamics."""
 
-    def __init__(self, filepath, D0, r0, S, Betta, gamma, c, d, h, two_mu, R, D, delta, precision):
+    def __init__(self, filepath, D0, r0, S, Betta, gamma, c, d, h, two_mu, R, D, delta, precision, mass):
         super(MolecularDynamics, self).__init__()
 
         self.filepath = filepath
@@ -36,12 +37,12 @@ class MolecularDynamics(object):
         self.R = R  # A
         self.D = D  # A
 
-        filreader = FileReader(filepath)
-        _, self.atoms, _ = filreader.file_reader()
+        filereader = FileReader(filepath)
+        _, self.atoms, _ = filereader.file_reader()
 
         self.delta = delta
         self.precision = precision
-        self.m = 2912
+        self.m = mass
         self.mass = self.m * len(self.atoms)
         self.forces = np.zeros((len(self.atoms), 3))
         self.signs = np.zeros((len(self.atoms), 3))
@@ -359,7 +360,6 @@ class MolecularDynamics(object):
         # for i in range(self.lenght):
         #     self.velocities[i] = np.random.normal(0, sigma, 3)
 
-        m_si = 2912
         for i in range(self.lenght):
             for j in range(3):
                 phi = random.uniform(0, 2 * np.pi)
@@ -369,7 +369,7 @@ class MolecularDynamics(object):
                 x = ro * np.cos(6.28 * phi)
                 k = 0.00008617
                 mu = 0
-                sigma = np.sqrt(2 * k * T / m_si)
+                sigma = np.sqrt(2 * k * T / self.m)
                 self.velocities[i][j] = mu + sigma * x
 
     def find_forces(self, ):
@@ -447,8 +447,7 @@ class MolecularDynamics(object):
                 self.atoms[idx][0] *= (1 + epsilon)
 
     def kinetic_energy(self, ):
-        m_si = 2912
-        return m_si * np.sum(self.velocities**2) / 2
+        return self.m * np.sum(self.velocities**2) / 2
 
 
 def tensile_one_eps(molecule):
@@ -560,17 +559,17 @@ def thermal_conductivity_one_processing(dT, time=100, T=300, relax=False):
         molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / molecule.mass
 
         if t % 10 == 0:
-            coefficinet = np.sqrt((3 * 3 / 2 * k * (T + dT / 2)) / (2912 / 2 * (molecule.velocities[0]**2 + molecule.velocities[1]**2 + molecule.velocities[2]**2)))
+            coefficinet = np.sqrt((3 * 3 / 2 * k * (T + dT / 2)) / (molecule.m / 2 * (molecule.velocities[0]**2 + molecule.velocities[1]**2 + molecule.velocities[2]**2)))
             molecule.velocities[0] *= coefficinet
             molecule.velocities[1] *= coefficinet
             molecule.velocities[2] *= coefficinet
 
-            coefficinet = np.sqrt((3 * 3 / 2 * k * (T - dT / 2)) / (2912 / 2 * (molecule.velocities[-1]**2 + molecule.velocities[-2]**2 + molecule.velocities[-3]**2)))
+            coefficinet = np.sqrt((3 * 3 / 2 * k * (T - dT / 2)) / (molecule.m / 2 * (molecule.velocities[-1]**2 + molecule.velocities[-2]**2 + molecule.velocities[-3]**2)))
             molecule.velocities[-1] *= coefficinet
             molecule.velocities[-2] *= coefficinet
             molecule.velocities[-3] *= coefficinet
 
-        return 3 * 3 / 2 * k * (T + dT / 2) - 2912 / 2 * (molecule.velocities[0][0]**2 + molecule.velocities[1][0]**2 + molecule.velocities[2][0]**2)
+        return 3 * 3 / 2 * k * (T + dT / 2) - molecule.m / 2 * (molecule.velocities[0][0]**2 + molecule.velocities[1][0]**2 + molecule.velocities[2][0]**2)
 
 
 def thermal_conductivity_multiprocessing():
@@ -609,17 +608,17 @@ def thermal_conductivity(molecule, dT_list, time=100, T=300, relax=False):
             molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / molecule.mass
 
             if t % 10 == 0:
-                coefficinet = np.sqrt((3 * 3 / 2 * k * (T + dT / 2)) / (2912 / 2 * (molecule.velocities[0]**2 + molecule.velocities[1]**2 + molecule.velocities[2]**2)))
+                coefficinet = np.sqrt((3 * 3 / 2 * k * (T + dT / 2)) / (molecule.m / 2 * (molecule.velocities[0]**2 + molecule.velocities[1]**2 + molecule.velocities[2]**2)))
                 molecule.velocities[0] *= coefficinet
                 molecule.velocities[1] *= coefficinet
                 molecule.velocities[2] *= coefficinet
 
-                coefficinet = np.sqrt((3 * 3 / 2 * k * (T - dT / 2)) / (2912 / 2 * (molecule.velocities[-1]**2 + molecule.velocities[-2]**2 + molecule.velocities[-3]**2)))
+                coefficinet = np.sqrt((3 * 3 / 2 * k * (T - dT / 2)) / (molecule.m / 2 * (molecule.velocities[-1]**2 + molecule.velocities[-2]**2 + molecule.velocities[-3]**2)))
                 molecule.velocities[-1] *= coefficinet
                 molecule.velocities[-2] *= coefficinet
                 molecule.velocities[-3] *= coefficinet
 
-        J.append(3 * 3 / 2 * k * (T + dT / 2) - 2912 / 2 * (molecule.velocities[0][0]**2 + molecule.velocities[1][0]**2 + molecule.velocities[2][0]**2))
+        J.append(3 * 3 / 2 * k * (T + dT / 2) - molecule.m / 2 * (molecule.velocities[0][0]**2 + molecule.velocities[1][0]**2 + molecule.velocities[2][0]**2))
 
     return J
 
@@ -641,10 +640,10 @@ def calorimetry_curve(molecule, T):
     kinetic_energy = molecule.kinetic_energy()
     temperature = np.zeros(time)
     for t in range(time):
-        molecule.atoms += molecule.velocities * dtime + 0.5 * molecule.forces * dtime**2 / 2912
+        molecule.atoms += molecule.velocities * dtime + 0.5 * molecule.forces * dtime**2 / molecule.m
         vf = molecule.forces
         molecule.find_forces()
-        molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / 2912
+        molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / molecule.m
         temperature[t] = 2 / 3 * 1 / (molecule.lenght * k) * molecule.kinetic_energy()
 
     return kinetic_energy, np.mean(temperature)
@@ -691,7 +690,7 @@ def second_deriv_E_matrix(mol):
 
 
 def spectrum_vals(omegas, min_val, max_val, dots):
-    sigma = 1
+    sigma = 10
     sum_of_gausses = 0
     spectrum_dots = np.empty(dots)
     omega_dots = np.arange(min_val, max_val, (max_val - min_val) / dots)
@@ -708,6 +707,7 @@ def spectrum_vals(omegas, min_val, max_val, dots):
 def spectrum_plot(mol, dots):
     sd_matrix = second_deriv_E_matrix(mol)
     eigen_values = np.linalg.eig(sd_matrix)[0]
+    print(eigen_values)
     omegas = np.array([(1 / mol.m) * abs(eigen_values[i]) ** 0.5 * (10 ** 15) / (3 * 10 ** 9) for i in range(eigen_values.size) if np.abs(eigen_values[i]) > 0.01])
     min_val = omegas.min() * 0
     max_val = omegas.max() * 1.1
@@ -723,10 +723,115 @@ def spectrum_plot(mol, dots):
     Спектр молекулы
     """
 
+    """
+    Автокорреляция
+    """
+
+
+def verle_vel(molecule, T):
+    # Алгоритм Верле, надо взять димер C2 ~ 300 одномерный,
+    # надо взять еще формулу и там по 6 атомам сложить
+    time = 1000
+    dtime = 1
+    dim = 3
+    v = np.zeros((time, molecule.lenght, dim))
+    molecule.find_velocities(T)
+    for t in range(time):
+        molecule.atoms += molecule.velocities * dtime + 0.5 * molecule.forces * dtime**2 / molecule.m
+        vf = molecule.forces
+        molecule.find_forces()
+        molecule.velocities += 0.5 * dtime * (vf + molecule.forces) / molecule.m
+        v[t] = molecule.velocities
+
+    return v.reshape(molecule.lenght, dim, time)
+
+
+def autocorrelation(molecule, tau):
+    vel_lenght_dim = verle_vel(molecule)
+    coefficinets = np.zeros(molecule.lenght, dim)
+    time = 1000
+    for i in range(len(vel_lenght_dim)):
+        for j in range(len(vel_dim)):
+            time = len(vel_lenght_dim[i][j])
+            vel1 = vel_lenght_dim[i][j][0:time - tau]
+            vel2 = vel_lenght_dim[i][j][tau:]
+            vel_mean = vel.mean()
+            vel_var = np.array([i**2 for i in vel - vel_mean]).sum()
+            auto_corr = 0
+            for i in range(time - tau):
+                temp = (vel1[i] - vel_mean) * (vel2[i] - vel_mean) / vel_var
+                auto_corr = auto_corr + temp
+            coefficinets[i][j] = auto_corr
+
+    return auto_corr
+
+
+def P(w):
+    return integrate.quad(lambda t: np.cos(w * t), 0, np.inf)[0]
+
+
+def spectrum_plot_autocorr(molecule, T):
+    v = verle_vel(molecule, T)
+    v0tv00 = v[0][0] * v[0][0][0]
+    v1tv10 = v[1][0] * v[1][0][0]
+    mean_v = np.mean(v0tv00 + v1tv10)
+    omega = np.array([w for w in range(1000)])
+    # min_val = omegas.min() * 0
+    # max_val = omegas.max() * 1.1
+    p = np.array([mean_v * P(w) for w in range(1000)])
+
+    # spectrum_dots, omega_dots = spectrum_vals(omegas, min_val, max_val, dots)
+
+    plt.plot(omega, p)
+    # plt.plot(p)
+    plt.show()
+
+
+def spectrum_plot1(dots):
+    eigen_values = np.array([0.0232854, 0.0116322, 0.0122042, 0.0101042, 0.0093638, 0.0085536, 0.0098193, 0.0006366, 0.0035970, 0.0023074, 0.0015176, 0.0012631, 0.0003403, -0.0002513, -0.0002415, 0.0001060, 0.0000742, 0.0000596, -0.0000000, -0.0000000, 0.0000000, 0.0000000, -0.0000000, 0.0000000])
+    omegas = np.array([abs(eigen_values[i]) ** 0.5 * (10 ** 15) / (3 * 10 ** 10) for i in range(eigen_values.size) if np.abs(eigen_values[i]) > 0.00001])
+    min_val = omegas.min() * 0
+    max_val = omegas.max() * 1.1
+    spectrum_dots, omega_dots = spectrum_vals(omegas, min_val, max_val, dots)
+    # print("lol")
+    print()
+    print(omegas)
+    # print(spectrum_dots)
+    fig, ax = plt.subplots()
+    ax.plot(omega_dots, spectrum_dots)
+    fig.set_figwidth(12)
+    fig.set_figheight(7)
+    ax.set_title('Спектр')
+    plt.show()
+
+    """
+    Автокорреляция
+    """
+
+    """
+    Енергия активации
+    """
+
+
+def two_mols_research(mol57, mol66):
+    mol = copy.deepcopy(mol57)
+    energy = np.arange(0, 1, 0.01)
+    alpha = np.arange(0, 1, 0.01)
+    for i, a in enumerate(alpha):
+        mol.atoms = a * mol57.atoms + (1 - a) * mol66.atoms
+        energy[i] = mol.calculate_energy()
+    Ea = energy.max() - mol57.calculate_energy()
+    Et = mol66.calculate_energy() - mol57.calculate_energy()
+    return energy, alpha, Ea, Et
+
+    """
+    Енергия активации
+    """
+
 
 def main():
     start_time = datetime.now()
-    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_physics/molecules/Si6.xyz"
+    PATH = "/Users/fedorkurusin/Documents/informatics/Molecule_physics/molecules/C2.xyz"
     molecule = MolecularDynamics(filepath=PATH,
                                  D0=3.24,
                                  r0=2.222,
@@ -740,11 +845,10 @@ def main():
                                  R=2.90,
                                  D=0.15,
                                  delta=1e-3,
-                                 precision=1e-3)
+                                 precision=1e-2,
+                                 mass=300)
 
-    # spectrum_plot(molecule, 100000)
-    print(molecule.calculate_volume(0.01, 10, 0.95))
-
+    spectrum_plot1(100000)
     print(f"execution time : {datetime.now() - start_time}")
 
 
